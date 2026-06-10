@@ -1,7 +1,0 @@
-# dlt with BigQuery destination extras
-dlt[bigquery]>=1.0.0
-
-# ClickHouse HTTP client (port 8123)
-# Lighter than clickhouse-driver (native protocol) and fully async-compatible
-clickhouse-connect>=0.7.0
-google-cloud-bigquery-storage

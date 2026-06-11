@@ -1,0 +1,11 @@
+dev:
+  langfuse_clickhouse:
+    dataset_name: "langfuse_clickhouse_dev"
+    pipeline_name: "langfuse_clickhouse_pipeline_dev"
+    start_date: "2026-06-03 04:00:00"
+
+prod:
+  langfuse_clickhouse:
+    dataset_name: "langfuse_clickhouse"
+    pipeline_name: "langfuse_clickhouse_pipeline"
+    start_date: "2026-06-11 11:00:00"

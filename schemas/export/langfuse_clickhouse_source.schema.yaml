@@ -1,9 +1,152 @@
 version: 2
-version_hash: AGuxJ3zF9uG5cXnu/T32OH9hbevjengkvokNa6HpJYw=
+version_hash: 0nWQJW5vX4Wuc/ihndQ6GW4S+XAIOXpCIhEkIHUl2gU=
 engine_version: 11
 name: langfuse_clickhouse_source
 tables:
+  traces:
+    write_disposition: merge
+    resource: traces
+    columns:
+      id:
+        data_type: text
+        nullable: false
+        primary_key: true
+      timestamp:
+        data_type: timestamp
+        nullable: true
+      name:
+        data_type: text
+        nullable: true
+      user_id:
+        data_type: text
+        nullable: true
+      metadata:
+        data_type: text
+        nullable: true
+      release:
+        data_type: text
+        nullable: true
+      version:
+        data_type: text
+        nullable: true
+      project_id:
+        data_type: text
+        nullable: false
+        primary_key: true
+      public:
+        data_type: bool
+        nullable: true
+      bookmarked:
+        data_type: bool
+        nullable: true
+      tags:
+        data_type: text
+        nullable: true
+      input:
+        data_type: text
+        nullable: true
+      output:
+        data_type: text
+        nullable: true
+      session_id:
+        data_type: text
+        nullable: true
+      environment:
+        data_type: text
+        nullable: true
+      is_deleted:
+        data_type: bigint
+        nullable: true
+      created_at:
+        data_type: timestamp
+        nullable: true
+      updated_at:
+        data_type: timestamp
+        nullable: true
+      event_ts:
+        data_type: timestamp
+        nullable: true
+  scores:
+    write_disposition: merge
+    resource: scores
+    columns:
+      id:
+        data_type: text
+        nullable: false
+        primary_key: true
+      timestamp:
+        data_type: timestamp
+        nullable: true
+      project_id:
+        data_type: text
+        nullable: false
+        primary_key: true
+      trace_id:
+        data_type: text
+        nullable: true
+      observation_id:
+        data_type: text
+        nullable: true
+      name:
+        data_type: text
+        nullable: true
+      value:
+        data_type: double
+        nullable: true
+      source:
+        data_type: text
+        nullable: true
+      comment:
+        data_type: text
+        nullable: true
+      author_user_id:
+        data_type: text
+        nullable: true
+      config_id:
+        data_type: text
+        nullable: true
+      data_type:
+        data_type: text
+        nullable: true
+      string_value:
+        data_type: text
+        nullable: true
+      long_string_value:
+        data_type: text
+        nullable: true
+      queue_id:
+        data_type: text
+        nullable: true
+      environment:
+        data_type: text
+        nullable: true
+      session_id:
+        data_type: text
+        nullable: true
+      dataset_run_id:
+        data_type: text
+        nullable: true
+      metadata:
+        data_type: text
+        nullable: true
+      is_deleted:
+        data_type: bigint
+        nullable: true
+      execution_trace_id:
+        data_type: text
+        nullable: true
+      created_at:
+        data_type: timestamp
+        nullable: true
+      updated_at:
+        data_type: timestamp
+        nullable: true
+      event_ts:
+        data_type: timestamp
+        nullable: true
   _dlt_version:
+    write_disposition: skip
+    resource: _dlt_version
     columns:
       version:
         data_type: bigint
@@ -23,15 +166,13 @@ tables:
       schema:
         data_type: text
         nullable: false
-    write_disposition: skip
-    resource: _dlt_version
-    description: Created by DLT. Tracks schema updates
   _dlt_loads:
+    write_disposition: skip
+    resource: _dlt_loads
     columns:
       load_id:
         data_type: text
         nullable: false
-        precision: 64
       schema_name:
         data_type: text
         nullable: true
@@ -44,146 +185,9 @@ tables:
       schema_version_hash:
         data_type: text
         nullable: true
-    write_disposition: skip
-    resource: _dlt_loads
-    description: Created by DLT. Tracks completed loads
-  traces:
-    columns:
-      id:
-        nullable: false
-        primary_key: true
-        data_type: text
-      timestamp:
-        data_type: timestamp
-        nullable: true
-      name:
-        data_type: text
-        nullable: true
-      user_id:
-        data_type: text
-        nullable: true
-      metadata:
-        data_type: text
-        nullable: true
-      project_id:
-        nullable: false
-        primary_key: true
-        data_type: text
-      public:
-        data_type: bool
-        nullable: true
-      bookmarked:
-        data_type: bool
-        nullable: true
-      tags:
-        data_type: text
-        nullable: true
-      input:
-        data_type: text
-        nullable: true
-      output:
-        data_type: text
-        nullable: true
-      environment:
-        data_type: text
-        nullable: true
-      is_deleted:
-        data_type: bigint
-        nullable: true
-      created_at:
-        data_type: timestamp
-        nullable: true
-      updated_at:
-        incremental: true
-        data_type: timestamp
-        nullable: true
-      event_ts:
-        data_type: timestamp
-        nullable: true
-      _dlt_load_id:
-        data_type: text
-        nullable: false
-      _dlt_id:
-        data_type: text
-        nullable: false
-        unique: true
-        row_key: true
-      release:
-        data_type: text
-        nullable: true
-    write_disposition: merge
-    resource: traces
-    x-normalizer:
-      seen-data: true
-  scores:
-    columns:
-      id:
-        nullable: false
-        primary_key: true
-        data_type: text
-      timestamp:
-        data_type: timestamp
-        nullable: true
-      project_id:
-        nullable: false
-        primary_key: true
-        data_type: text
-      trace_id:
-        data_type: text
-        nullable: true
-      name:
-        data_type: text
-        nullable: true
-      value:
-        data_type: double
-        nullable: true
-      source:
-        data_type: text
-        nullable: true
-      comment:
-        data_type: text
-        nullable: true
-      data_type:
-        data_type: text
-        nullable: true
-      string_value:
-        data_type: text
-        nullable: true
-      long_string_value:
-        data_type: text
-        nullable: true
-      environment:
-        data_type: text
-        nullable: true
-      metadata:
-        data_type: text
-        nullable: true
-      is_deleted:
-        data_type: bigint
-        nullable: true
-      created_at:
-        data_type: timestamp
-        nullable: true
-      updated_at:
-        incremental: true
-        data_type: timestamp
-        nullable: true
-      event_ts:
-        data_type: timestamp
-        nullable: true
-      _dlt_load_id:
-        data_type: text
-        nullable: false
-      _dlt_id:
-        data_type: text
-        nullable: false
-        unique: true
-        row_key: true
-    write_disposition: merge
-    resource: scores
-    x-normalizer:
-      seen-data: true
   _dlt_pipeline_state:
+    write_disposition: append
+    resource: _dlt_pipeline_state
     columns:
       version:
         data_type: bigint
@@ -206,47 +210,11 @@ tables:
       _dlt_load_id:
         data_type: text
         nullable: false
-        precision: 64
-      _dlt_id:
-        data_type: text
-        nullable: false
-        unique: true
-        row_key: true
-    write_disposition: append
-    file_format: preferred
-    resource: _dlt_pipeline_state
-    x-normalizer:
-      seen-data: true
-settings:
-  detections:
-  - iso_timestamp
-  default_hints:
-    not_null:
-    - _dlt_id
-    - _dlt_root_id
-    - _dlt_parent_id
-    - _dlt_list_idx
-    - _dlt_load_id
-    parent_key:
-    - _dlt_parent_id
-    root_key:
-    - _dlt_root_id
-    unique:
-    - _dlt_id
-    row_key:
-    - _dlt_id
+settings: {}
 normalizers:
   names: snake_case
   json:
     module: dlt.common.normalizers.json.relational
-    config:
-      max_nesting: 0
-      propagation:
-        tables:
-          traces:
-            _dlt_id: _dlt_root_id
-          scores:
-            _dlt_id: _dlt_root_id
 previous_hashes:
-- e9krmT68EAogw7dImukCsB4NCLhOdPwXhZXGS+nH6qY=
-- IIy5T1DdhjAYnjwh/l7gaapfIcPvUwY/pggW1MaVR/o=
+- 6NQAAc6UuSr8G4kPG7yD50VdxhPI31l03EinPa0gW30=
+- gfj2yQJI89kGdvzIDaF8PNAKeieDLmzm0BmPfVuKAow=

@@ -1,0 +1,10 @@
+[project]
+name = "clickhouse-bigquery-pipeline"
+version = "0.1.0"
+description = "Incrementally loads Langfuse traces and scores from ClickHouse into BigQuery"
+requires-python = ">=3.13"
+dependencies = [
+    "clickhouse-connect>=0.7.0",
+    "dlt[bigquery]>=1.0.0",
+    "google-cloud-bigquery-storage>=2.39.0",
+]

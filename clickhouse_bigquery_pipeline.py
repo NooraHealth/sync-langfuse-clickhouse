@@ -1,95 +1,60 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterator, Optional
-
+from pathlib import Path
+import yaml
 import dlt
+import clickhouse_connect
+import utils
 
-#start date for import
-_INITIAL_VALUE = datetime.strptime("2026-06-03 06:00:00", "%Y-%m-%d %H:%M:%S")
+# Load params and start date at module level
+params = utils.get_params('langfuse_clickhouse')
+start_date = datetime.strptime(params['start_date'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
 
-#list of all columns to be imported
-_TABLES: dict[str, list[str]] = {
-    "traces": [
-        "id", "timestamp", "name", "user_id",
-        "toString(metadata) AS metadata",
-        "release", "version", "project_id", "public", "bookmarked",
-        "toString(tags) AS tags",
-        "toString(input)  AS input",
-        "toString(output) AS output",
-        "session_id", "environment", "is_deleted",
-        "created_at", "updated_at", "event_ts",
-    ],
-    "scores": [
-        "id", "timestamp", "project_id", "trace_id", "observation_id",
-        "name", "value", "source", "comment", "author_user_id", "config_id",
-        "data_type", "string_value", "long_string_value", "queue_id",
-        "environment", "session_id", "dataset_run_id",
-        "toString(metadata) AS metadata",
-        "is_deleted", "execution_trace_id",
-        "created_at", "updated_at", "event_ts",
-    ],
-}
+# dlt internal tables — never load these as resources
+dlt_tables = {"_dlt_version", "_dlt_loads", "_dlt_pipeline_state"}
 
+# Load the import schema
+import_schema_path = Path("schemas/import") / "langfuse_clickhouse_source.schema.yaml"
+with import_schema_path.open() as f:
+    import_schema = yaml.safe_load(f)
 
-# ---------------------------------------------------------------------------
+# Columns that are Maps/Arrays in ClickHouse and must be cast to string.
+# All other columns are selected as-is by their name from the schema file.
+cast_columns = {"metadata": "toString(metadata) as metadata", "tags": "toString(tags) as tags", "input": "toString(input) as input", "output": "toString(output) as output"}
+
+def columns_from_schema(table: str) -> list[str]:
+    columns = import_schema["tables"][table]["columns"].keys()
+    return [cast_columns.get(col, col) for col in columns]
+
 # Helpers
-# ---------------------------------------------------------------------------
+def get_client(host: str, port: int, database: str, username: str, password: str):
+    return clickhouse_connect.get_client(host = host, port = port, database = database, username = username, password = password, compress = True)
 
-def _get_client(host: str, port: int, database: str,
-                username: str, password: str):
-    import clickhouse_connect
-    return clickhouse_connect.get_client(
-        host=host, port=port, database=database,
-        username=username, password=password,
-        compress=True,
-    )
-
-
-def _fetch_all(client, table: str, columns: list[str],
-               cursor: datetime, project_filter: str) -> list[dict]:
+def fetch_all(client, table: str, columns: list[str], cursor: datetime) -> list[dict]:
     col_sql = ",\n            ".join(columns)
     query = f"""
-        SELECT
-            {col_sql}
-        FROM {table} FINAL
-        WHERE updated_at > %(cursor)s
-          AND is_deleted = 0
-          {project_filter}
-        ORDER BY updated_at ASC
+        select
+          {col_sql}
+        from {table} final
+        where updated_at > %(cursor)s
+        order by updated_at asc
     """
     result = client.query(query, parameters={"cursor": cursor})
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
-
-def _make_resource(table: str, client, project_filter: str):
-    columns = _TABLES[table]
-
-    @dlt.resource(
-        name=table,
-        table_name=table,
-        primary_key=["id", "project_id"],
-        write_disposition="merge",
-    )
-    def _resource(
-        updated_at: dlt.sources.incremental[datetime] = dlt.sources.incremental(
-            "updated_at",
-            initial_value=_INITIAL_VALUE,
-        ),
+def make_resource(table: str, client):
+    columns = columns_from_schema(table)
+    @dlt.resource(name = table, table_name = table, primary_key = ["id", "project_id"], write_disposition = "merge")
+    def resource(updated_at: dlt.sources.incremental[datetime] = dlt.sources.incremental("updated_at", initial_value = start_date,),
     ) -> Iterator[list]:
-        rows = _fetch_all(
-            client, table, columns,
-            updated_at.last_value, project_filter,
-        )
+        rows = fetch_all(client, table, columns, updated_at.last_value,)
         if rows:
             yield rows
 
-    _resource.__name__ = table
-    return _resource
+    resource.__name__ = table
+    return resource
 
-
-# ---------------------------------------------------------------------------
 # Source
-# ---------------------------------------------------------------------------
-
 @dlt.source(name="langfuse_clickhouse_source", max_table_nesting=0)
 def langfuse_clickhouse_source(
     host: str = dlt.config.value,
@@ -97,28 +62,23 @@ def langfuse_clickhouse_source(
     database: str = dlt.config.value,
     username: str = dlt.secrets.value,
     password: str = dlt.secrets.value,
-    project_id: Optional[str] = dlt.config.value,
 ) -> list:
-    client = _get_client(host, port, database, username, password)
-    project_filter = f"AND project_id = '{project_id}'" if project_id else ""
-
+    client = get_client(host, port, database, username, password)
+    tables = [t for t in import_schema["tables"] if t not in dlt_tables]
     return [
-        _make_resource(table, client, project_filter)
-        for table in _TABLES
+        make_resource(table, client)
+        for table in tables
     ]
 
-
-# ---------------------------------------------------------------------------
 # Pipeline
-# ---------------------------------------------------------------------------
-
 def run() -> None:
     pipeline = dlt.pipeline(
-        pipeline_name="langfuse_clickhouse_pipeline",
-        destination="bigquery",
-        dataset_name="clickhouse-co-pilot",
-        progress="log",
-        export_schema_path="schemas/export",
+        pipeline_name = params['pipeline_name'],
+        destination = "bigquery",
+        dataset_name = params['dataset_name'],
+        progress = "log",
+        import_schema_path = "schemas/import",
+        export_schema_path = "schemas/export",
     )
     load_info = pipeline.run(langfuse_clickhouse_source())
     print(load_info)

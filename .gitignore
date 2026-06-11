@@ -1,5 +1,3 @@
-# local duckdb files
-*.duckdb
-# pipeline secrets
-secrets.toml
+.dlt/config.toml
 .dlt/secrets.toml
+.DS_Store

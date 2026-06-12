@@ -12,7 +12,7 @@ on:
 
   # Scheduled run every day on main branch only
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "30 20 * * *"
 
 jobs:
   run-pipeline:

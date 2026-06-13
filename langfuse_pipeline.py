@@ -95,11 +95,14 @@ def langfuse_clickhouse_source(
 # Pipeline
 def run() -> None:
     params = get_params("langfuse_clickhouse")
+    print(f"{params=}")
     start_date = datetime.strptime(
       params["start_date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    print(f"{start_date=}")
 
     import_schema = get_import_schema()
     tables = [t for t in import_schema["tables"] if not t.startswith("_dlt")]
+    print(f"{tables=}")
 
     pipeline = dlt.pipeline(
         pipeline_name=params["pipeline_name"],

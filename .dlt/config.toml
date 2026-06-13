@@ -1,4 +1,4 @@
 [sources.langfuse_clickhouse_source]
-host       = "34.180.4.137"   # ClickHouse hostname or IP
-port       = 8123          # HTTP interface port (default 8123)
-database   = "default"     # Langfuse ClickHouse database name
+host = "34.180.4.137"   # ClickHouse hostname or IP
+port = 8123          # HTTP interface port (default 8123)
+database = "default"     # Langfuse ClickHouse database name

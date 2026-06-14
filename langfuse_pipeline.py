@@ -8,16 +8,16 @@ import yaml
 
 
 def get_params(source_name, params_path="params.yaml", envir=None):
+    print(f"{source_name=}")
     with open(params_path) as f:
         all_params = yaml.safe_load(f)
 
     if envir is None:
         github_ref_name = os.getenv("GITHUB_REF_NAME")
         envir = "prod" if github_ref_name == "main" else "dev"
+    print(f"{envir=}")
 
-    print(f"env='{envir}' | source='{source_name}'")
-
-    params = all_params[envir][source_name]
+    params = all_params[source_name][envir]
     return params
 
 
@@ -96,9 +96,6 @@ def langfuse_clickhouse_source(
 def run() -> None:
     params = get_params("langfuse_clickhouse")
     print(f"{params=}")
-    start_date = datetime.strptime(
-      params["start_date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-    print(f"{start_date=}")
 
     import_schema = get_import_schema()
     tables = [t for t in import_schema["tables"] if not t.startswith("_dlt")]
@@ -113,7 +110,7 @@ def run() -> None:
         export_schema_path="schemas/export",
     )
     load_info = pipeline.run(
-        langfuse_clickhouse_source(tables=tables, start_date=start_date))
+        langfuse_clickhouse_source(tables=tables, start_date=params["start_date"]))
     print(load_info)
 
 

@@ -3,7 +3,9 @@ langfuse_clickhouse:
     dataset_name: "langfuse_clickhouse_dev"
     pipeline_name: "langfuse_clickhouse_pipeline_dev"
     start_date: "2000-01-01T00:00:00Z"
+    location: "asia-south1"
   prod:
     dataset_name: "langfuse_clickhouse"
     pipeline_name: "langfuse_clickhouse_pipeline"
     start_date: "2026-06-11T11:00:00Z" # TODO: set this to 2000-01-01T00:00:00Z, delete the table, and sync from scratch
+    location: "asia-south1"

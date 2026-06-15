@@ -103,7 +103,7 @@ def run() -> None:
 
     pipeline = dlt.pipeline(
         pipeline_name=params["pipeline_name"],
-        destination="bigquery",
+        destination=dlt.destinations.bigquery(location=params["location"]),
         dataset_name=params["dataset_name"],
         progress="log",
         import_schema_path="schemas/import",

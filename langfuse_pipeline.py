@@ -28,7 +28,7 @@ def get_import_schema():
     return import_schema
 
 
-def get_columns_from_schema(table: str) -> list[str]:
+def get_columns_from_schema(table_name: str) -> list[str]:
     # Columns that are Maps/Arrays in ClickHouse and must be cast to string.
     # All other columns are selected as-is by their name from the schema file.
     cast_columns = {
@@ -38,47 +38,41 @@ def get_columns_from_schema(table: str) -> list[str]:
         "output": "toString(output) as output",
     }
     import_schema = get_import_schema()
-    columns = import_schema["tables"][table]["columns"].keys()
+    columns = import_schema["tables"][table_name]["columns"].keys()
     return [cast_columns.get(col, col) for col in columns]
 
 
 # Helpers
-def fetch_all(client, table: str, columns: list[str], cursor: datetime) -> list[dict]:
-    col_sql = ",\n            ".join(columns)
-    query = f"""
-        select
-          {col_sql}
-        from {table}
-        where updated_at > %(cursor)s
-        order by updated_at
-    """
+def fetch_rows(client, table_name: str, columns: list[str], cursor) -> list[dict]:
+    col_sql = ", ".join(columns)
+    query = f"select {col_sql} from {table_name} where updated_at > %(cursor)s order by updated_at"
+    print(f"{query=}")
+    print(f"{cursor=}")
     result = client.query(query, parameters={"cursor": cursor})
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
 
-def make_resource(table: str, start_date, client):
-    columns = get_columns_from_schema(table)
+def make_resource(table_name: str, start_date: datetime, client):
+    columns = get_columns_from_schema(table_name)
 
     @dlt.resource(
-        name=table,
-        table_name=table,
+        name=table_name,
+        table_name=table_name,
         primary_key=["id", "project_id"],
         write_disposition="merge")
-    def resource(
-        updated_at: dlt.sources.incremental[datetime] = dlt.sources.incremental(
-            "updated_at", initial_value=start_date)) -> Iterator[list]:
-        rows = fetch_all(client, table, columns, updated_at.last_value)
+    def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
+        rows = fetch_rows(client, table_name, columns, updated_at.last_value)
         if rows:
             yield rows
 
-    resource.__name__ = table
+    resource.__name__ = table_name
     return resource
 
 
 # Source
 @dlt.source(name="langfuse_clickhouse_source", max_table_nesting=0)
 def langfuse_clickhouse_source(
-    tables,
+    table_names,
     start_date,
     host: str = dlt.config.value,
     port: int = dlt.config.value,
@@ -88,7 +82,7 @@ def langfuse_clickhouse_source(
 ) -> list:
     client = clickhouse_connect.get_client(
         host=host, port=port, database=database, username=username, password=password)
-    result = [make_resource(table, start_date, client) for table in tables]
+    result = [make_resource(table_name, start_date, client) for table_name in table_names]
     return result
 
 
@@ -96,10 +90,13 @@ def langfuse_clickhouse_source(
 def run() -> None:
     params = get_params("langfuse_clickhouse")
     print(f"{params=}")
+    start_date = datetime.strptime(
+        params["start_date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    print(f"{start_date=}")
 
     import_schema = get_import_schema()
-    tables = [t for t in import_schema["tables"] if not t.startswith("_dlt")]
-    print(f"{tables=}")
+    table_names = [t for t in import_schema["tables"] if not t.startswith("_dlt")]
+    print(f"{table_names=}")
 
     pipeline = dlt.pipeline(
         pipeline_name=params["pipeline_name"],
@@ -109,8 +106,8 @@ def run() -> None:
         import_schema_path="schemas/import",
         export_schema_path="schemas/export",
     )
-    load_info = pipeline.run(
-        langfuse_clickhouse_source(tables=tables, start_date=params["start_date"]))
+    load_info = pipeline.run(langfuse_clickhouse_source(
+        table_names=table_names, start_date=start_date))
     print(load_info)
 
 

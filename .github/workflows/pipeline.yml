@@ -31,17 +31,6 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Create dlt config file
-        # Writes non-secret config from GitHub Variables into .dlt/config.toml
-        run: |
-          mkdir -p .dlt
-          cat > .dlt/config.toml << EOF
-          [sources.langfuse_clickhouse_source]
-          host     = "${{ vars.CLICKHOUSE_HOST }}"
-          port     = ${{ vars.CLICKHOUSE_PORT }}
-          database = "${{ vars.CLICKHOUSE_DATABASE }}"
-          EOF
-
       - name: Create dlt secrets file
         # Writes credentials from GitHub Secrets into .dlt/secrets.toml
         run: |

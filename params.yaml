@@ -2,10 +2,13 @@ dev:
   langfuse_clickhouse:
     dataset_name: "langfuse_clickhouse_dev"
     pipeline_name: "langfuse_clickhouse_pipeline_dev"
-    start_date: "2026-06-03 04:00:00"
+    start_date: "2026-06-10 14:00:00"
+    location: "asia-south1"
 
 prod:
   langfuse_clickhouse:
     dataset_name: "langfuse_clickhouse"
     pipeline_name: "langfuse_clickhouse_pipeline"
-    start_date: "2026-06-11 11:00:00"
+    start_date: "2026-06-11 14:00:00"
+    location: "asia-south1"
+

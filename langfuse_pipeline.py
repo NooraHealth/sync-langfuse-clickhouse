@@ -20,7 +20,7 @@ with import_schema_path.open() as f:
 
 # Columns that are Maps/Arrays in ClickHouse and must be cast to string.
 # All other columns are selected as-is by their name from the schema file.
-cast_columns = {"metadata": "toString(metadata) as metadata", "tags": "toString(tags) as tags", "input": "toString(input) as input", "output": "toString(output) as output"}
+cast_columns = {"metadata": "toJSONString(metadata) as metadata", "tags": "toString(tags) as tags", "input": "toString(input) as input", "output": "toString(output) as output"}
 
 def columns_from_schema(table: str) -> list[str]:
     columns = import_schema["tables"][table]["columns"].keys()
@@ -74,7 +74,7 @@ def langfuse_clickhouse_source(
 def run() -> None:
     pipeline = dlt.pipeline(
         pipeline_name = params['pipeline_name'],
-        destination = "bigquery",
+        destination = dlt.destinations.bigquery(location =params['location']),
         dataset_name = params['dataset_name'],
         progress = "log",
         import_schema_path = "schemas/import",

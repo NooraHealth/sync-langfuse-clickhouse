@@ -7,4 +7,5 @@ dependencies = [
     "clickhouse-connect>=0.7.0",
     "dlt[bigquery]>=1.0.0",
     "google-cloud-bigquery-storage>=2.39.0",
+    "psutil>=7.2.2",
 ]

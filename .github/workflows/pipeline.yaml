@@ -21,16 +21,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "latest"
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Install dependencies
         run: uv sync
-
       - name: Create dlt secrets file
         # Writes credentials from GitHub Secrets into .dlt/secrets.toml
         run: |
@@ -48,7 +45,7 @@ jobs:
       - name: Run pipeline
         # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
         # name — utils.get_params() uses it to select dev vs prod environment
-        run: uv run python clickhouse_bigquery_pipeline.py
+        run: uv run langfuse_pipeline.py
 
       - name: Upload dlt pipeline state (for incremental cursor persistence)
         if: always()

@@ -20,6 +20,7 @@ def get_params(source_name, params_path="params.yaml", envir=None):
     params = all_params[source_name][envir]
     return params
 
+batch_size = 1000
 
 def get_import_schema():
     import_schema_path = Path("schemas/import") / "langfuse_clickhouse_source.schema.yaml"
@@ -32,7 +33,7 @@ def get_columns_from_schema(table_name: str) -> list[str]:
     # Columns that are Maps/Arrays in ClickHouse and must be cast to string.
     # All other columns are selected as-is by their name from the schema file.
     cast_columns = {
-        "metadata": "toString(metadata) as metadata",
+        "metadata": "toJSONString(metadata) as metadata",
         "tags": "toString(tags) as tags",
         "input": "toString(input) as input",
         "output": "toString(output) as output",
@@ -43,12 +44,12 @@ def get_columns_from_schema(table_name: str) -> list[str]:
 
 
 # Helpers
-def fetch_rows(client, table_name: str, columns: list[str], cursor) -> list[dict]:
+def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) -> list[dict]:
     col_sql = ", ".join(columns)
-    query = f"select {col_sql} from {table_name} where updated_at > %(cursor)s order by updated_at"
+    query = f"select {col_sql} from {table_name} where updated_at > %(cursor)s order by updated_at limit %(batch_size)s"
     print(f"{query=}")
     print(f"{cursor=}")
-    result = client.query(query, parameters={"cursor": cursor})
+    result = client.query(query, parameters={"cursor": cursor, "batch_size": batch_size})
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
 
@@ -61,9 +62,12 @@ def make_resource(table_name: str, start_date: datetime, client):
         primary_key=["id", "project_id"],
         write_disposition="merge")
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
-        rows = fetch_rows(client, table_name, columns, updated_at.last_value)
-        if rows:
+        page_cursor = updated_at.last_value
+        while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
             yield rows
+            if len(rows) < batch_size:
+                break
+            page_cursor = rows[-1]["updated_at"]
 
     resource.__name__ = table_name
     return resource
@@ -105,6 +109,7 @@ def run() -> None:
         progress="log",
         import_schema_path="schemas/import",
         export_schema_path="schemas/export",
+        pipelines_dir=".dlt/pipelines",
     )
     load_info = pipeline.run(langfuse_clickhouse_source(
         table_names=table_names, start_date=start_date))

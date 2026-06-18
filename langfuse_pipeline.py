@@ -20,8 +20,6 @@ def get_params(source_name, params_path="params.yaml", envir=None):
     params = all_params[source_name][envir]
     return params
 
-batch_size = 1000
-
 def get_import_schema():
     import_schema_path = Path("schemas/import") / "langfuse_clickhouse_source.schema.yaml"
     with import_schema_path.open() as f:
@@ -62,6 +60,7 @@ def make_resource(table_name: str, start_date: datetime, client):
         primary_key=["id", "project_id"],
         write_disposition="merge")
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
+	batch_size = 5000
         page_cursor = updated_at.last_value
         while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
             yield rows

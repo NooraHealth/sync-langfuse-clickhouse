@@ -4,7 +4,13 @@ on:
 
   # Allow manual trigger from GitHub Actions UI with branch selection
   workflow_dispatch:
-
+    inputs:
+      use_start_date:
+        required: false
+        type: choice
+        options:
+          - False
+          - True
   # Scheduled run every day on main branch only
   schedule:
     - cron: "30 20 * * *"
@@ -13,6 +19,8 @@ jobs:
   run-pipeline:
     name: Run pipeline (${{ github.ref_name }})
     runs-on: ubuntu-latest
+    env: 
+      USE_START_DATE: ${{ inputs.use_start_date || 'False' }}
 
     steps:
       - name: Checkout repository
@@ -40,4 +48,4 @@ jobs:
       - name: Run pipeline
         # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
         # name — utils.get_params() uses it to select dev vs prod environment
-        run: uv run langfuse_pipeline.py
+        run: uv run langfuse_pipeline.py --use-start-date $USE_START_DATE

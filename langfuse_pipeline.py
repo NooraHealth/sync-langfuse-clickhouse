@@ -5,7 +5,7 @@ import clickhouse_connect
 import dlt
 import os
 import yaml
-
+import argparse
 
 def get_params(source_name, params_path="params.yaml", envir=None):
     print(f"{source_name=}")
@@ -49,7 +49,7 @@ def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) 
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
 
-def make_resource(table_name: str, client):
+def make_resource(table_name: str, start_date: datetime | None, client):
     columns = get_columns_from_schema(table_name)
 
     @dlt.resource(
@@ -57,7 +57,7 @@ def make_resource(table_name: str, client):
         table_name=table_name,
         primary_key=["id", "project_id"],
         write_disposition="merge")
-    def resource(updated_at=dlt.sources.incremental("updated_at")) -> Iterator[list]:
+    def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
         batch_size = 5000
         page_cursor = updated_at.last_value
         while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
@@ -73,6 +73,7 @@ def make_resource(table_name: str, client):
 @dlt.source(name="langfuse_clickhouse_source", max_table_nesting=0)
 def langfuse_clickhouse_source(
     table_names,
+    start_date: datetime | None,
     host: str = dlt.config.value,
     port: int = dlt.config.value,
     database: str = dlt.config.value,
@@ -81,12 +82,25 @@ def langfuse_clickhouse_source(
 ) -> list:
     client = clickhouse_connect.get_client(
         host=host, port=port, database=database, username=username, password=password)
-    return [make_resource(table_name, client) for table_name in table_names]
+    return [make_resource(table_name, start_date, client) for table_name in table_names]
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--use-start-date', type=str, default='False')
+    return parser.parse_args()
 
 def run() -> None:
     params = get_params("langfuse_clickhouse")
     print(f"{params=}")
+    
+    args = parse_args()
+
+    if args.use_start_date == 'True':
+        start_date = datetime.strptime(
+            params["start_date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    else:
+        start_date = None
+    print(f"{start_date=}")
 
     import_schema = get_import_schema()
     table_names = [t for t in import_schema["tables"] if not t.startswith("_dlt")]
@@ -103,7 +117,7 @@ def run() -> None:
 
     pipeline.sync_destination()
 
-    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names))
+    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date))
     print(load_info)
 
 

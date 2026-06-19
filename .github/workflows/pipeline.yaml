@@ -1,11 +1,6 @@
 name: Langfuse ClickHouse → BigQuery Pipeline
 
 on:
-  # Run on every push to main (prod) and development (dev) branches
-  push:
-    branches:
-      - main
-      - development
 
   # Allow manual trigger from GitHub Actions UI with branch selection
   workflow_dispatch:
@@ -46,11 +41,3 @@ jobs:
         # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
         # name — utils.get_params() uses it to select dev vs prod environment
         run: uv run langfuse_pipeline.py
-
-      - name: Upload dlt pipeline state (for incremental cursor persistence)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dlt-pipeline-state-${{ github.ref_name }}
-          path: .dlt/pipelines/
-          retention-days: 7

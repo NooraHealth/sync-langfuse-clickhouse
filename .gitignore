@@ -1,4 +1,3 @@
 .dlt/secrets.toml
 .DS_Store
-.dlt/pipelines/langfuse_clickhouse_pipeline
-schemas/export/
+

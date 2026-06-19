@@ -216,5 +216,5 @@ normalizers:
   json:
     module: dlt.common.normalizers.json.relational
 previous_hashes:
-- 4Dgu+yWVGPENCx6WWIlAk3kxpKjpuefz1Slltrn0EGM=
+- 6NQAAc6UuSr8G4kPG7yD50VdxhPI31l03EinPa0gW30=
 - gfj2yQJI89kGdvzIDaF8PNAKeieDLmzm0BmPfVuKAow=

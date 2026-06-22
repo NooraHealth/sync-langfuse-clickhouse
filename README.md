@@ -1,4 +1,4 @@
-[![sync](https://github.com/NooraHealth/sync-langfuse-clickhous/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/NooraHealth/sync-langfuse-clickhouse/actions/workflows/pipeline.yaml)
+[![sync](https://github.com/NooraHealth/sync-langfuse-clickhouse/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/NooraHealth/sync-langfuse-clickhouse/actions/workflows/pipeline.yaml)
 
 # Langfuse ClickHouse → BigQuery Pipeline
 

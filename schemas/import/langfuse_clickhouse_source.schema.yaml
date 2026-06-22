@@ -1,0 +1,262 @@
+version: 1
+previous_hashes: []
+engine_version: 11
+name: langfuse_clickhouse_source
+tables:
+
+  traces:
+    name: traces
+    write_disposition: merge
+    resource: traces
+    columns:
+      id:
+        name: id
+        data_type: text
+        nullable: false
+        primary_key: true
+      timestamp:
+        name: timestamp
+        data_type: timestamp
+        nullable: true
+      name:
+        name: name
+        data_type: text
+        nullable: true
+      user_id:
+        name: user_id
+        data_type: text
+        nullable: true
+      metadata:
+        name: metadata
+        data_type: text
+        nullable: true
+      release:
+        name: release
+        data_type: text
+        nullable: true
+      version:
+        name: version
+        data_type: text
+        nullable: true
+      project_id:
+        name: project_id
+        data_type: text
+        nullable: false
+        primary_key: true
+      public:
+        name: public
+        data_type: bool
+        nullable: true
+      bookmarked:
+        name: bookmarked
+        data_type: bool
+        nullable: true
+      tags:
+        name: tags
+        data_type: text
+        nullable: true
+      input:
+        name: input
+        data_type: text
+        nullable: true
+      output:
+        name: output
+        data_type: text
+        nullable: true
+      session_id:
+        name: session_id
+        data_type: text
+        nullable: true
+      environment:
+        name: environment
+        data_type: text
+        nullable: true
+      is_deleted:
+        name: is_deleted
+        data_type: bigint
+        nullable: true
+      created_at:
+        name: created_at
+        data_type: timestamp
+        nullable: true
+      updated_at:
+        name: updated_at
+        data_type: timestamp
+        nullable: true
+      event_ts:
+        name: event_ts
+        data_type: timestamp
+        nullable: true
+
+  scores:
+    name: scores
+    write_disposition: merge
+    resource: scores
+    columns:
+      id:
+        name: id
+        data_type: text
+        nullable: false
+        primary_key: true
+      timestamp:
+        name: timestamp
+        data_type: timestamp
+        nullable: true
+      project_id:
+        name: project_id
+        data_type: text
+        nullable: false
+        primary_key: true
+      trace_id:
+        name: trace_id
+        data_type: text
+        nullable: true
+      observation_id:
+        name: observation_id
+        data_type: text
+        nullable: true
+      name:
+        name: name
+        data_type: text
+        nullable: true
+      value:
+        name: value
+        data_type: double
+        nullable: true
+      source:
+        name: source
+        data_type: text
+        nullable: true
+      comment:
+        name: comment
+        data_type: text
+        nullable: true
+      author_user_id:
+        name: author_user_id
+        data_type: text
+        nullable: true
+      config_id:
+        name: config_id
+        data_type: text
+        nullable: true
+      data_type:
+        name: data_type
+        data_type: text
+        nullable: true
+      string_value:
+        name: string_value
+        data_type: text
+        nullable: true
+      long_string_value:
+        name: long_string_value
+        data_type: text
+        nullable: true
+      queue_id:
+        name: queue_id
+        data_type: text
+        nullable: true
+      environment:
+        name: environment
+        data_type: text
+        nullable: true
+      session_id:
+        name: session_id
+        data_type: text
+        nullable: true
+      dataset_run_id:
+        name: dataset_run_id
+        data_type: text
+        nullable: true
+      metadata:
+        name: metadata
+        data_type: text
+        nullable: true
+      is_deleted:
+        name: is_deleted
+        data_type: bigint
+        nullable: true
+      execution_trace_id:
+        name: execution_trace_id
+        data_type: text
+        nullable: true
+      created_at:
+        name: created_at
+        data_type: timestamp
+        nullable: true
+      updated_at:
+        name: updated_at
+        data_type: timestamp
+        nullable: true
+      event_ts:
+        name: event_ts
+        data_type: timestamp
+        nullable: true
+
+  _dlt_version:
+    write_disposition: skip
+    resource: _dlt_version
+    columns:
+      version:
+        data_type: bigint
+        nullable: false
+      engine_version:
+        data_type: bigint
+        nullable: false
+      inserted_at:
+        data_type: timestamp
+        nullable: false
+      schema_name:
+        data_type: text
+        nullable: false
+      version_hash:
+        data_type: text
+        nullable: false
+      schema:
+        data_type: text
+        nullable: false
+
+  _dlt_loads:
+    write_disposition: skip
+    resource: _dlt_loads
+    columns:
+      load_id:
+        data_type: text
+        nullable: false
+      schema_name:
+        data_type: text
+        nullable: true
+      status:
+        data_type: bigint
+        nullable: false
+      inserted_at:
+        data_type: timestamp
+        nullable: false
+      schema_version_hash:
+        data_type: text
+        nullable: true
+
+  _dlt_pipeline_state:
+    write_disposition: append
+    resource: _dlt_pipeline_state
+    columns:
+      version:
+        data_type: bigint
+        nullable: false
+      engine_version:
+        data_type: bigint
+        nullable: false
+      pipeline_name:
+        data_type: text
+        nullable: false
+      state:
+        data_type: text
+        nullable: false
+      created_at:
+        data_type: timestamp
+        nullable: false
+      version_hash:
+        data_type: text
+        nullable: true
+      _dlt_load_id:
+        data_type: text
+        nullable: false

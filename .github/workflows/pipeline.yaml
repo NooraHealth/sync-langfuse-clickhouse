@@ -1,0 +1,51 @@
+name: Langfuse ClickHouse → BigQuery Pipeline
+
+on:
+
+  # Allow manual trigger from GitHub Actions UI with branch selection
+  workflow_dispatch:
+    inputs:
+      use_start_date:
+        required: false
+        type: choice
+        options:
+          - False
+          - True
+  # Scheduled run every day on main branch only
+  schedule:
+    - cron: "30 20 * * *"
+
+jobs:
+  run-pipeline:
+    name: Run pipeline (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    env: 
+      USE_START_DATE: ${{ inputs.use_start_date || 'False' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Install dependencies
+        run: uv sync
+      - name: Create dlt secrets file
+        # Writes credentials from GitHub Secrets into .dlt/secrets.toml
+        run: |
+          cat > .dlt/secrets.toml << EOF
+          [sources.langfuse_clickhouse_source]
+          username = "${{ secrets.CLICKHOUSE_USERNAME }}"
+          password = "${{ secrets.CLICKHOUSE_PASSWORD }}"
+
+          [destination.bigquery.credentials]
+          project_id   = "${{ secrets.BIGQUERY_PROJECT_ID }}"
+          client_email = "${{ secrets.BIGQUERY_CLIENT_EMAIL }}"
+          private_key  = "${{ secrets.BIGQUERY_PRIVATE_KEY }}"
+          EOF
+
+      - name: Run pipeline
+        # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
+        # name — utils.get_params() uses it to select dev vs prod environment
+        run: uv run langfuse_pipeline.py --use-start-date $USE_START_DATE

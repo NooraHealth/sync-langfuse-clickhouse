@@ -9,3 +9,4 @@ langfuse_clickhouse:
     pipeline_name: "langfuse_clickhouse_pipeline"
     start_date: "2000-01-01 00:00:00"
     location: "asia-south1"
+    slack_channel_id: C06A4EDU8N6

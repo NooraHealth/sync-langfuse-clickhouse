@@ -2,10 +2,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 import clickhouse_connect
-import dlt
-import os
-import yaml
 import argparse
+import dlt
+import tomllib
+import os
+import slack_sdk
+import yaml
+
 
 def get_params(source_name, params_path="params.yaml", envir=None):
     print(f"{source_name=}")
@@ -84,15 +87,36 @@ def langfuse_clickhouse_source(
         host=host, port=port, database=database, username=username, password=password)
     return [make_resource(table_name, start_date, client) for table_name in table_names]
 
+
+def get_slack_message_text(e, pipeline_name):
+    text = (
+      f":warning: Sync for *{pipeline_name}* failed with the following error:"
+      f"\n\n`{str(e)}`"
+    )
+    run_url = os.getenv("RUN_URL")
+    if run_url is not None:
+        text += f"\n\nPlease see the GitHub Actions <{run_url}|workflow run log>."
+    return text
+
+
+def send_message_to_slack(text, channel_id):
+    with open(Path(".dlt/secrets.toml"), "rb") as f:
+        token = tomllib.load(f)["slack_token"]
+    client = slack_sdk.WebClient(token=token)
+    try:
+        client.chat_postMessage(channel=channel_id, text=text)
+    except Exception as e:
+        raise e
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-start-date', type=str, default='False')
     return parser.parse_args()
 
-def run() -> None:
-    params = get_params("langfuse_clickhouse")
+
+def run(params) -> None:
     print(f"{params=}")
-    
     args = parse_args()
 
     if args.use_start_date == 'True':
@@ -122,4 +146,11 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        params = get_params("langfuse_clickhouse")
+        run(params)
+    except Exception as e:
+        if os.getenv("GITHUB_REF_NAME") == "main":
+            text = get_slack_message_text(e, params["pipeline_name"])
+            send_message_to_slack(text, params["slack_channel_id"])
+        raise e

@@ -21,10 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     env: 
       USE_START_DATE: ${{ inputs.use_start_date || 'False' }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -35,6 +36,8 @@ jobs:
         # Writes credentials from GitHub Secrets into .dlt/secrets.toml
         run: |
           cat > .dlt/secrets.toml << EOF
+          slack_token = "${{ secrets.SLACK_TOKEN }}"
+
           [sources.langfuse_clickhouse_source]
           username = "${{ secrets.CLICKHOUSE_USERNAME }}"
           password = "${{ secrets.CLICKHOUSE_PASSWORD }}"

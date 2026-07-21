@@ -48,4 +48,27 @@ jobs:
       - name: Run pipeline
         # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
         # name — utils.get_params() uses it to select dev vs prod environment
-        run: uv run langfuse_pipeline.py --use-start-date $USE_START_DATE
+        run: |
+          set -e
+          MAX_ATTEMPTS=5
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i: running load job"
+            uv run langfuse_pipeline.py --use-start-date $USE_START_DATE
+            MAX_DATE=$(bq query --use_legacy_sql=false --format=csv \
+              "SELECT MAX(date(updated_at)) FROM \`noorahealth-raw.langfuse_clickhouse.traces\`" | tail -n 1)
+            TODAY=$(date -u +%Y-%m-%d)
+
+            echo "max_date=$MAX_DATE today=$TODAY"
+
+            if [ "$MAX_DATE" == "$TODAY" ]; then
+              echo "Max date matches today. Done."
+              exit 0
+            fi
+
+            echo "Max date does not match today, retrying..."
+            sleep 30
+          done
+
+          echo "Max date never caught up to today after $MAX_ATTEMPTS attempts"
+          exit 1
+          

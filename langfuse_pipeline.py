@@ -48,7 +48,6 @@ def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) 
     result = client.query(query, parameters={"cursor": cursor, "batch_size": batch_size})
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
-
 def make_resource(table_name: str, start_date: datetime | None, client):
     columns = get_columns_from_schema(table_name)
 
@@ -59,16 +58,41 @@ def make_resource(table_name: str, start_date: datetime | None, client):
         write_disposition="merge")
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
         batch_size = 5000
+        max_attempts = 5
+        retry_delay_seconds = 10
+
         page_cursor = updated_at.last_value
-        while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
-            yield rows
-            if len(rows) < batch_size:
+        today = datetime.now(timezone.utc).date()
+
+        for attempt in range(1, max_attempts + 1):
+
+            while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
+                yield rows
+                page_cursor = rows[-1]["updated_at"]
+                if len(rows) < batch_size:
+                    break
+
+            max_date = page_cursor.date() if page_cursor else None
+            print(f"{table_name=} {attempt=} {page_cursor =} {max_date=} {today=}")
+
+            if max_date == today:
                 break
-            page_cursor = rows[-1]["updated_at"]
+
+            if attempt == max_attempts:
+                print(
+                    f"WARNING: {table_name=} did not reach today's data after "
+                    f"{max_attempts} attempts. Last max_updated_at={max_updated_at}."
+                )
+                break
+
+            print(
+                f"{table_name=} max_updated_at date ({max_date}) is not today ({today}); "
+                f"retrying (attempt {attempt + 1}/{max_attempts}) after {retry_delay_seconds}s"
+            )
+            time.sleep(retry_delay_seconds)
 
     resource.__name__ = table_name
     return resource
-
 
 @dlt.source(name="langfuse_clickhouse_source", max_table_nesting=0)
 def langfuse_clickhouse_source(

@@ -1,11 +1,16 @@
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 import clickhouse_connect
-import dlt
-import os
-import yaml
 import argparse
+import dlt
+import tomllib
+import os
+import slack_sdk
+import yaml
+import time
+
 
 def get_params(source_name, params_path="params.yaml", envir=None):
     print(f"{source_name=}")
@@ -48,7 +53,8 @@ def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) 
     result = client.query(query, parameters={"cursor": cursor, "batch_size": batch_size})
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
-def make_resource(table_name: str, start_date: datetime | None, client):
+
+def make_resource(table_name: str, start_date: datetime | None, client, max_attempts, delays):
     columns = get_columns_from_schema(table_name)
 
     @dlt.resource(
@@ -58,8 +64,6 @@ def make_resource(table_name: str, start_date: datetime | None, client):
         write_disposition="merge")
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
         batch_size = 5000
-        max_attempts = 5
-        retry_delay_seconds = 10
 
         page_cursor = updated_at.last_value
         today = datetime.now(timezone.utc).date()
@@ -76,28 +80,32 @@ def make_resource(table_name: str, start_date: datetime | None, client):
             print(f"{table_name=} {attempt=} {page_cursor =} {max_date=} {today=}")
 
             if max_date == today:
+                print(f"Data for today loaded after {attempt=} attempts.")
                 break
 
             if attempt == max_attempts:
                 print(
                     f"WARNING: {table_name=} did not reach today's data after "
-                    f"{max_attempts} attempts. Last max_updated_at={max_updated_at}."
+                    f"{max_attempts} attempts. Last page_cursor.date ={page_cursor.date}."
                 )
                 break
 
             print(
-                f"{table_name=} max_updated_at date ({max_date}) is not today ({today}); "
-                f"retrying (attempt {attempt + 1}/{max_attempts}) after {retry_delay_seconds}s"
+                f"{table_name=} page_cursor.date date ({max_date}) is not today ({today}); "
+                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delays}s"
             )
-            time.sleep(retry_delay_seconds)
+            time.sleep(delays)
 
     resource.__name__ = table_name
     return resource
+
 
 @dlt.source(name="langfuse_clickhouse_source", max_table_nesting=0)
 def langfuse_clickhouse_source(
     table_names,
     start_date: datetime | None,
+    max_attempts,
+    delay,
     host: str = dlt.config.value,
     port: int = dlt.config.value,
     database: str = dlt.config.value,
@@ -106,17 +114,38 @@ def langfuse_clickhouse_source(
 ) -> list:
     client = clickhouse_connect.get_client(
         host=host, port=port, database=database, username=username, password=password)
-    return [make_resource(table_name, start_date, client) for table_name in table_names]
+    return [make_resource(table_name, start_date, client, max_attempts, delay) for table_name in table_names]
+
+
+def get_slack_message_text(e, pipeline_name):
+    text = (
+      f":warning: Sync for *{pipeline_name}* failed with the following error:"
+      f"\n\n`{str(e)}`"
+    )
+    run_url = os.getenv("RUN_URL")
+    if run_url is not None:
+        text += f"\n\nPlease see the GitHub Actions <{run_url}|workflow run log>."
+    return text
+
+
+def send_message_to_slack(text, channel_id):
+    with open(Path(".dlt/secrets.toml"), "rb") as f:
+        token = tomllib.load(f)["slack_token"]
+    client = slack_sdk.WebClient(token=token)
+    try:
+        client.chat_postMessage(channel=channel_id, text=text)
+    except Exception as e:
+        raise e
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-start-date', type=str, default='False')
     return parser.parse_args()
 
-def run() -> None:
-    params = get_params("langfuse_clickhouse")
+
+def run(params) -> None:
     print(f"{params=}")
-    
     args = parse_args()
 
     if args.use_start_date == 'True':
@@ -141,9 +170,16 @@ def run() -> None:
 
     pipeline.sync_destination()
 
-    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date))
+    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date, max_attempts=params["max_attempts"], delay=params["delay"]))
     print(load_info)
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        params = get_params("langfuse_clickhouse")
+        run(params)
+    except Exception as e:
+        if os.getenv("GITHUB_REF_NAME") == "main":
+            text = get_slack_message_text(e, params["pipeline_name"])
+            send_message_to_slack(text, params["slack_channel_id"])
+        raise e

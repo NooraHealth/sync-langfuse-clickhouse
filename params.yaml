@@ -2,10 +2,15 @@ langfuse_clickhouse:
   dev:
     dataset_name: "langfuse_clickhouse_dev"
     pipeline_name: "langfuse_clickhouse_pipeline_dev"
-    start_date: "2026-07-20 18:00:00"
+    start_date: "2026-07-21 18:00:00"
     location: "asia-south1"
+    max_attempts: 5
+    delay: 10
   prod:
     dataset_name: "langfuse_clickhouse"
     pipeline_name: "langfuse_clickhouse_pipeline"
     start_date: "2000-01-01 00:00:00"
     location: "asia-south1"
+    slack_channel_id: C06A4EDU8N6
+    max_attempts: 5
+    delay: 10

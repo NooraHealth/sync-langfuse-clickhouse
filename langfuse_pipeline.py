@@ -92,9 +92,9 @@ def make_resource(table_name: str, start_date: datetime | None, client, max_atte
 
             print(
                 f"{table_name=} page_cursor.date date ({max_date}) is not today ({today}); "
-                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delays}s"
+                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delay}s"
             )
-            time.sleep(delays)
+            time.sleep(delay)
 
     resource.__name__ = table_name
     return resource
@@ -163,6 +163,9 @@ def send_message_to_slack(text, channel_id):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-start-date', type=str, default='False')
+    parser.add_argument('--max-attempts', type=int, default=5)
+    parser.add_argument('--delay', type=int, default=10)
+
     return parser.parse_args()
 
 
@@ -192,7 +195,7 @@ def run(params) -> None:
 
     pipeline.sync_destination()
 
-    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date, max_attempts=params["max_attempts"], delay=params["delay"]))
+    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date, max_attempts=args.max_attempts, delay=args.delay))
     print(load_info)
 
 

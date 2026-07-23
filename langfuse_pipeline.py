@@ -138,6 +138,28 @@ def send_message_to_slack(text, channel_id):
         raise e
 
 
+
+def get_slack_message_text(e, pipeline_name):
+    text = (
+      f":warning: Sync for *{pipeline_name}* failed with the following error:"
+      f"\n\n`{str(e)}`"
+    )
+    run_url = os.getenv("RUN_URL")
+    if run_url is not None:
+        text += f"\n\nPlease see the GitHub Actions <{run_url}|workflow run log>."
+    return text
+
+
+def send_message_to_slack(text, channel_id):
+    with open(Path(".dlt/secrets.toml"), "rb") as f:
+        token = tomllib.load(f)["slack_token"]
+    client = slack_sdk.WebClient(token=token)
+    try:
+        client.chat_postMessage(channel=channel_id, text=text)
+    except Exception as e:
+        raise e
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-start-date', type=str, default='False')

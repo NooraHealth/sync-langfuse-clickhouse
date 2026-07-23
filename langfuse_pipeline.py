@@ -78,19 +78,19 @@ def make_resource(table_name: str, start_date: datetime | None, client, max_atte
             print(f"{table_name=} {attempt=} {page_cursor=} {max_date=} {today=}")
 
             if max_date == today:
-                print(f"Data for today loaded after {attempt=} attempts.")
+                print(f"Data through today loaded after {attempt} attempt(s).")
                 break
 
             if attempt == max_attempts:
                 print(
                     f"WARNING: {table_name=} did not reach today's data after "
-                    f"{max_attempts} attempts. Last page_cursor.date ={page_cursor.date}."
+                    f"{attempt} attempts. Last {page_cursor.date()=}."
                 )
                 break
 
             print(
-                f"{table_name=} page_cursor.date date ({max_date}) is not today ({today}), "
-                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delay} seconds."
+                f"{table_name=} max_date is not today, starting attempt "
+                f"{attempt + 1}/{max_attempts} after {delay} seconds."
             )
             time.sleep(delay)
 

@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -54,7 +53,7 @@ def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) 
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
 
-def make_resource(table_name: str, start_date: datetime | None, client, max_attempts, delays):
+def make_resource(table_name: str, start_date: datetime | None, client, max_attempts, delay):
     columns = get_columns_from_schema(table_name)
 
     @dlt.resource(
@@ -64,7 +63,6 @@ def make_resource(table_name: str, start_date: datetime | None, client, max_atte
         write_disposition="merge")
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
         batch_size = 5000
-
         page_cursor = updated_at.last_value
         today = datetime.now(timezone.utc).date()
 
@@ -77,7 +75,7 @@ def make_resource(table_name: str, start_date: datetime | None, client, max_atte
                     break
 
             max_date = page_cursor.date() if page_cursor else None
-            print(f"{table_name=} {attempt=} {page_cursor =} {max_date=} {today=}")
+            print(f"{table_name=} {attempt=} {page_cursor=} {max_date=} {today=}")
 
             if max_date == today:
                 print(f"Data for today loaded after {attempt=} attempts.")
@@ -91,8 +89,8 @@ def make_resource(table_name: str, start_date: datetime | None, client, max_atte
                 break
 
             print(
-                f"{table_name=} page_cursor.date date ({max_date}) is not today ({today}); "
-                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delay}s"
+                f"{table_name=} page_cursor.date date ({max_date}) is not today ({today}), "
+                f"retrying (attempt {attempt + 1}/{max_attempts}) after {delay} seconds."
             )
             time.sleep(delay)
 
@@ -114,29 +112,8 @@ def langfuse_clickhouse_source(
 ) -> list:
     client = clickhouse_connect.get_client(
         host=host, port=port, database=database, username=username, password=password)
-    return [make_resource(table_name, start_date, client, max_attempts, delay) for table_name in table_names]
-
-
-def get_slack_message_text(e, pipeline_name):
-    text = (
-      f":warning: Sync for *{pipeline_name}* failed with the following error:"
-      f"\n\n`{str(e)}`"
-    )
-    run_url = os.getenv("RUN_URL")
-    if run_url is not None:
-        text += f"\n\nPlease see the GitHub Actions <{run_url}|workflow run log>."
-    return text
-
-
-def send_message_to_slack(text, channel_id):
-    with open(Path(".dlt/secrets.toml"), "rb") as f:
-        token = tomllib.load(f)["slack_token"]
-    client = slack_sdk.WebClient(token=token)
-    try:
-        client.chat_postMessage(channel=channel_id, text=text)
-    except Exception as e:
-        raise e
-
+    return [make_resource(table_name, start_date, client, max_attempts, delay)
+            for table_name in table_names]
 
 
 def get_slack_message_text(e, pipeline_name):
@@ -195,7 +172,12 @@ def run(params) -> None:
 
     pipeline.sync_destination()
 
-    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date, max_attempts=args.max_attempts, delay=args.delay))
+    load_info = pipeline.run(langfuse_clickhouse_source(
+        table_names=table_names,
+        start_date=start_date,
+        max_attempts=args.max_attempts,
+        delay=args.delay
+    ))
     print(load_info)
 
 

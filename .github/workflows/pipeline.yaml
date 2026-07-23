@@ -52,4 +52,3 @@ jobs:
         # GITHUB_REF_NAME is set automatically by GitHub Actions to the branch
         # name — utils.get_params() uses it to select dev vs prod environment
         run: uv run langfuse_pipeline.py --use-start-date $USE_START_DATE
-        

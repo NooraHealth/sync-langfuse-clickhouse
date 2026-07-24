@@ -8,6 +8,7 @@ import tomllib
 import os
 import slack_sdk
 import yaml
+import time
 
 
 def get_params(source_name, params_path="params.yaml", envir=None):
@@ -52,7 +53,7 @@ def fetch_rows(client, table_name: str, columns: list[str], cursor, batch_size) 
     return [dict(zip(result.column_names, row)) for row in result.result_rows]
 
 
-def make_resource(table_name: str, start_date: datetime | None, client):
+def make_resource(table_name: str, start_date: datetime | None, client, max_attempts, delay):
     columns = get_columns_from_schema(table_name)
 
     @dlt.resource(
@@ -63,11 +64,35 @@ def make_resource(table_name: str, start_date: datetime | None, client):
     def resource(updated_at=dlt.sources.incremental("updated_at", initial_value=start_date)) -> Iterator[list]:
         batch_size = 5000
         page_cursor = updated_at.last_value
-        while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
-            yield rows
-            if len(rows) < batch_size:
+        today = datetime.now(timezone.utc).date()
+
+        for attempt in range(1, max_attempts + 1):
+
+            while (rows := fetch_rows(client, table_name, columns, page_cursor, batch_size)):
+                yield rows
+                page_cursor = rows[-1]["updated_at"]
+                if len(rows) < batch_size:
+                    break
+
+            max_date = page_cursor.date() if page_cursor else None
+            print(f"{table_name=} {attempt=} {page_cursor=} {max_date=} {today=}")
+
+            if max_date == today:
+                print(f"Data through today loaded after {attempt} attempt(s).")
                 break
-            page_cursor = rows[-1]["updated_at"]
+
+            if attempt == max_attempts:
+                print(
+                    f"WARNING: {table_name=} did not reach today's data after "
+                    f"{attempt} attempts. Last {page_cursor.date()=}."
+                )
+                break
+
+            print(
+                f"{table_name=} max_date is not today, starting attempt "
+                f"{attempt + 1}/{max_attempts} after {delay} seconds."
+            )
+            time.sleep(delay)
 
     resource.__name__ = table_name
     return resource
@@ -77,6 +102,8 @@ def make_resource(table_name: str, start_date: datetime | None, client):
 def langfuse_clickhouse_source(
     table_names,
     start_date: datetime | None,
+    max_attempts,
+    delay,
     host: str = dlt.config.value,
     port: int = dlt.config.value,
     database: str = dlt.config.value,
@@ -85,7 +112,8 @@ def langfuse_clickhouse_source(
 ) -> list:
     client = clickhouse_connect.get_client(
         host=host, port=port, database=database, username=username, password=password)
-    return [make_resource(table_name, start_date, client) for table_name in table_names]
+    return [make_resource(table_name, start_date, client, max_attempts, delay)
+            for table_name in table_names]
 
 
 def get_slack_message_text(e, pipeline_name):
@@ -112,6 +140,9 @@ def send_message_to_slack(text, channel_id):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-start-date', type=str, default='False')
+    parser.add_argument('--max-attempts', type=int, default=5)
+    parser.add_argument('--delay', type=int, default=10)
+
     return parser.parse_args()
 
 
@@ -141,7 +172,12 @@ def run(params) -> None:
 
     pipeline.sync_destination()
 
-    load_info = pipeline.run(langfuse_clickhouse_source(table_names=table_names, start_date=start_date))
+    load_info = pipeline.run(langfuse_clickhouse_source(
+        table_names=table_names,
+        start_date=start_date,
+        max_attempts=args.max_attempts,
+        delay=args.delay
+    ))
     print(load_info)
 
 
